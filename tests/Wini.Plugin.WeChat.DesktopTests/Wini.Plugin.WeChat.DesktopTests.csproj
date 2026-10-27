@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <HostRoot>$(MSBuildThisFileDirectory)..\..\..\windowsisland</HostRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Wini.Plugin.WeChat/Wini.Plugin.WeChat.csproj" />
+    <ProjectReference Include="$(HostRoot)/src/WindowsIsland.Contracts/WindowsIsland.Contracts.csproj" />
+    <ProjectReference Include="$(HostRoot)/src/WindowsIsland.PluginIsolation/WindowsIsland.PluginIsolation.csproj" />
+    <ProjectReference Include="$(HostRoot)/src/WindowsIsland.PluginWorker/WindowsIsland.PluginWorker.csproj" ReferenceOutputAssembly="false" />
+    <Compile Include="$(HostRoot)/src/WindowsIsland/Plugins/Desktop/*.cs" Link="Host/Desktop/%(Filename)%(Extension)" />
+    <Compile Include="$(HostRoot)/src/WindowsIsland/Plugins/PluginDesktopPolicy.cs;$(HostRoot)/src/WindowsIsland/Plugins/PluginPaths.cs;$(HostRoot)/src/WindowsIsland/Plugins/PluginFileSafety.cs;$(HostRoot)/src/WindowsIsland/Plugins/PluginException.cs" Link="Host/%(Filename)%(Extension)" />
+    <Compile Include="$(HostRoot)/src/WindowsIsland/Plugins/Isolation/SandboxProcess.cs;$(HostRoot)/src/WindowsIsland/Plugins/Isolation/SandboxNative.cs;$(HostRoot)/src/WindowsIsland/Plugins/Isolation/SandboxAccess.cs" Link="Host/Isolation/%(Filename)%(Extension)" />
+    <Compile Include="../Wini.Plugin.WeChat.Tests/AccessibilityChecks.cs" Link="AccessibilityChecks.cs" />
+  </ItemGroup>
+  <Target Name="CopyWorker" AfterTargets="Build">
+    <ItemGroup>
+      <_WorkerFiles Include="$(HostRoot)/artifacts/bin/WindowsIsland.PluginWorker/$(Configuration)/net10.0/win-x64/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_WorkerFiles)" DestinationFiles="@(_WorkerFiles->'$(TargetDir)PluginWorker/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

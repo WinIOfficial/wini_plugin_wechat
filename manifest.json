@@ -7,14 +7,19 @@
   "entryAssembly": "Wini.Plugin.WeChat.dll",
   "entryType": "Wini.Plugin.WeChat.WeChatPlugin",
   "contractVersion": 1,
-  "permissions": ["notifications", "wechat"],
+  "permissions": ["notifications", "settings", "automation", "process"],
+  "desktop": {
+    "processes": ["Weixin", "WeChat"],
+    "modules": ["Weixin.dll"],
+    "purpose": "读取微信窗口中的新消息、会话免打扰状态与头像，并按需启用微信辅助访问。"
+  },
   "author": "winiofficial",
   "description": "微信消息通知、会话免打扰与头像补全。",
   "developerId": "winiofficial",
   "developerName": "winiofficial",
   "repositoryUrl": "https://github.com/WinIOfficial/wini_plugin_wechat",
   "terms": {
-    "revision": "1",
-    "text": "启用后，消息岛会读取本机微信会话的通知、头像和免打扰状态，并显示新消息。停用插件后停止监听。插件不上传聊天内容。"
+    "revision": "2",
+    "text": "启用后，微信插件会读取本机微信的新消息、头像和会话免打扰状态，并显示新消息；必要时开启微信辅助访问。停用后停止监听，并恢复由本次监听开启的辅助访问状态。插件不上传聊天内容。"
   }
 }

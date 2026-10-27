@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts\bin\$(MSBuildProjectName)\</BaseOutputPath>
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
-    <ContractsVersion Condition="'$(ContractsVersion)' == ''">0.1.0</ContractsVersion>
+    <ContractsVersion Condition="'$(ContractsVersion)' == ''">0.1.1</ContractsVersion>
     <ContractsProject Condition="'$(ContractsProject)' == '' and '$(ContractsFeed)' == '' and Exists('$(MSBuildThisFileDirectory)..\windowsisland\src\WindowsIsland.Contracts\WindowsIsland.Contracts.csproj')">$(MSBuildThisFileDirectory)..\windowsisland\src\WindowsIsland.Contracts\WindowsIsland.Contracts.csproj</ContractsProject>
     <RestoreAdditionalProjectSources Condition="'$(ContractsFeed)' != ''">$(RestoreAdditionalProjectSources);$(ContractsFeed)</RestoreAdditionalProjectSources>
   </PropertyGroup>

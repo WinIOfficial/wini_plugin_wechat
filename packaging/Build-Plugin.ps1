@@ -2,7 +2,7 @@ param(
     [string]$Version = '0.1.1',
     [string]$ContractsProject,
     [string]$ContractsFeed,
-    [string]$ContractsVersion = '0.1.0'
+    [string]$ContractsVersion = '0.1.1'
 )
 $ErrorActionPreference = 'Stop'
 function Assert-SemVer([string]$Value, [string]$Field = 'version') {

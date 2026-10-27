@@ -9,4 +9,8 @@
   <ItemGroup Condition="'$(ContractsProject)' == ''">
     <PackageReference Include="WindowsIsland.Contracts" Version="$(ContractsVersion)" ExcludeAssets="runtime" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wini.Plugin.WeChat.Tests" />
+    <InternalsVisibleTo Include="Wini.Plugin.WeChat.DesktopTests" />
+  </ItemGroup>
 </Project>
