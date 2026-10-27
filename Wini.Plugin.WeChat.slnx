@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Wini.Plugin.WeChat/Wini.Plugin.WeChat.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Wini.Plugin.WeChat.Tests/Wini.Plugin.WeChat.Tests.csproj" />
+  </Folder>
+</Solution>

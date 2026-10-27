@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(ContractsProject)' != ''">
+    <ProjectReference Include="$(ContractsProject)" Private="false" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(ContractsProject)' == ''">
+    <PackageReference Include="WindowsIsland.Contracts" Version="$(ContractsVersion)" ExcludeAssets="runtime" />
+  </ItemGroup>
+</Project>
