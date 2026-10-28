@@ -35,7 +35,7 @@ internal sealed class WeChatService(IPluginDesktop desktop, Action<PluginNotific
             catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
             catch (Exception error) when (error is IOException or InvalidOperationException or UnauthorizedAccessException)
             { Volatile.Write(ref _status, new(PluginConnectionState.Disconnected, PluginStatusReason.ConnectionFailed)); }
-            catch (Exception error) { report?.Invoke(error); throw; }
+            catch (Exception error) { report?.Invoke(error.GetBaseException()); throw; }
             try { await Task.Delay(500, token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
         }
@@ -79,7 +79,8 @@ internal sealed class WeChatService(IPluginDesktop desktop, Action<PluginNotific
                         _conversations.Update(client.ProcessId, snapshot.Previews);
                         if (snapshot.ConversationMuted is null)
                             snapshot = snapshot with { ConversationMuted = _conversations.IsMuted(snapshot.Conversation, client.ProcessId) };
-                        foreach (var arrival in watch.Tracker.Update(snapshot, DateTimeOffset.Now))
+                        var observedAt = tree.ObservedAt == default ? DateTimeOffset.UtcNow : tree.ObservedAt;
+                        foreach (var arrival in watch.Tracker.Update(snapshot, observedAt))
                         {
                             token.ThrowIfCancellationRequested();
                             var notification = Notification(client, window, arrival.Conversation, arrival.Body,
@@ -142,7 +143,7 @@ internal sealed class WeChatService(IPluginDesktop desktop, Action<PluginNotific
         PluginNotificationKind kind, byte[]? avatar = null)
     {
         var sequence = ++_sequence;
-        return new("wini_plugin_wechat", conversation, null, body, DateTimeOffset.Now, client.Icon, avatar,
+        return new("wini_plugin_wechat", conversation, null, body, DateTimeOffset.UtcNow, client.Icon, avatar,
             $"{_instance}/{client.ProcessId}/{window.Handle}/{sequence}", client.ProcessId, "微信", "wechat", sequence, Kind: kind);
     }
 

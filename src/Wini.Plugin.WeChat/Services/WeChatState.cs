@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace Wini.Plugin.WeChat.Services;
@@ -61,9 +62,9 @@ internal static partial class WeChatText
     public static bool Recent(string stamp, DateTimeOffset now)
     {
         if (stamp is "现在" or "刚刚" or "Now" or "Just now") return true;
-        if (!TimeOnly.TryParseExact(stamp, "HH:mm", out var clock)) return false;
-        var local = now.LocalDateTime;
-        var at = local.Date.Add(clock.ToTimeSpan());
+        if (!TimeSpan.TryParseExact(stamp, @"hh\:mm", CultureInfo.InvariantCulture, out var clock)) return false;
+        var local = now.DateTime;
+        var at = local.Date.Add(clock);
         if (at - local > TimeSpan.FromMinutes(1)) at = at.AddDays(-1);
         return local - at is var age && age >= TimeSpan.FromMinutes(-1) && age <= TimeSpan.FromMinutes(2);
     }

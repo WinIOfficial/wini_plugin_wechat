@@ -1,7 +1,9 @@
 using System.Buffers.Binary;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
 
 namespace Wini.Plugin.WeChat.Services;
 
@@ -20,7 +22,7 @@ internal sealed class WeChatAvatarCache(string? directory = null, string scope =
             if (path is not null && new FileInfo(path) is { Exists: true, Length: > 0 and <= 65536 } file)
             {
                 var bytes = File.ReadAllBytes(path);
-                if (ValidPng(bytes)) entry = new(bytes, file.LastWriteTimeUtc);
+                if (ValidPng(bytes)) entry = new(bytes, ModifiedUtc(file));
             }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException
@@ -42,9 +44,10 @@ internal sealed class WeChatAvatarCache(string? directory = null, string scope =
             if (!_pruned)
             {
                 _pruned = true;
-                var files = new DirectoryInfo(directory).EnumerateFiles("*.png").OrderByDescending(file => file.LastWriteTimeUtc).ToArray();
+                var files = new DirectoryInfo(directory).EnumerateFiles("*.png").Select(file => (File: file, Modified: ModifiedUtc(file)))
+                    .OrderByDescending(item => item.Modified).ToArray();
                 for (var index = 0; index < files.Length; index++)
-                    if (index >= 384 || DateTime.UtcNow - files[index].LastWriteTimeUtc > TimeSpan.FromDays(7)) files[index].Delete();
+                    if (index >= 384 || DateTime.UtcNow - files[index].Modified > TimeSpan.FromDays(7)) files[index].File.Delete();
             }
             var path = FilePath(key)!;
             if (unchanged && File.Exists(path)) { File.SetLastWriteTimeUtc(path, DateTime.UtcNow); return; }
@@ -69,6 +72,18 @@ internal sealed class WeChatAvatarCache(string? directory = null, string scope =
     private string? FilePath((string Key, string Conversation) key) => directory is null ? null
         : Path.Combine(directory, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             $"{scope.Length}:{scope}{key.Key.Length}:{key.Key}{key.Conversation.Length}:{key.Conversation}"))) + ".png");
+
+    private static DateTime ModifiedUtc(FileInfo file)
+    {
+        if (!OperatingSystem.IsWindows()) return file.LastWriteTimeUtc;
+        using var handle = File.OpenHandle(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (!GetFileTime(handle, 0, 0, out var written)) throw new IOException("Avatar cache timestamp is unavailable.");
+        return DateTime.FromFileTimeUtc(written);
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileTime(SafeFileHandle file, nint created, nint accessed, out long written);
 
     internal static bool ValidPng(ReadOnlySpan<byte> bytes)
     {

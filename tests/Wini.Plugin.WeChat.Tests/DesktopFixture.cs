@@ -33,7 +33,7 @@ internal sealed class DesktopFixture : IPluginDesktop
             Node(0,"消息","chat_message_list",50008,"messages",new(260,0,540,500)),
             .._history.Select((message,index) => Node(4,message.Body,"",50007,"message/"+message.Id,
                 new(260,index*68,540,68),message.Direction))
-        ]));
+        ]) { ObservedAt = DateTimeOffset.Now });
     }
     public Task<byte[]?> ReadImageAsync(DesktopImage request, CancellationToken token = default)
     { Interlocked.Increment(ref ImageCalls); return Task.FromResult(Avatar); }

@@ -9,6 +9,7 @@
     <HostRoot>$(MSBuildThisFileDirectory)..\..\..\windowsisland</HostRoot>
   </PropertyGroup>
   <ItemGroup>
+    <Using Include="System.IO" />
     <ProjectReference Include="../../src/Wini.Plugin.WeChat/Wini.Plugin.WeChat.csproj" />
     <ProjectReference Include="$(HostRoot)/src/WindowsIsland.Contracts/WindowsIsland.Contracts.csproj" />
     <ProjectReference Include="$(HostRoot)/src/WindowsIsland.PluginIsolation/WindowsIsland.PluginIsolation.csproj" />

@@ -37,6 +37,15 @@ internal static class WeChatChecks
         check(WeChatText.MatchesPreview("这是一个较长的预览…", "这是一个较长的预览，后面还有正文")
             && !WeChatText.MatchesPreview("你好", "你好世界"), "Truncated previews match without conflating short messages");
         check(WeChatText.Recent(stamp, now) && !WeChatText.Recent("昨天", now), "Only recent new sessions can generate arrivals");
+        foreach (var offset in new[] { TimeSpan.FromHours(-11), TimeSpan.FromHours(13) })
+        {
+            var observedAt = new DateTimeOffset(2026, 10, 28, 12, 34, 30, offset);
+            check(WeChatText.Recent("12:34", observedAt) && !WeChatText.Recent("12:20", observedAt),
+                "Session freshness uses the snapshot offset instead of the worker time zone");
+        }
+        var midnight = new DateTimeOffset(2026, 10, 28, 0, 0, 30, TimeSpan.FromHours(13));
+        check(!WeChatText.Recent("24:00", midnight) && !WeChatText.Recent("00:60", midnight),
+            "Numeric clock labels reject hours and minutes outside the daily clock");
         check(preview.Pinned && WeChatText.ParsePreview("session_item_示例群", $"示例群\nPinned\n新消息\n{stamp}", [])!.Pinned,
             "Session pin metadata is retained independently of message content");
         var pinnedTracker = new WeChatTracker();

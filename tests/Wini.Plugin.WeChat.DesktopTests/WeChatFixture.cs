@@ -115,6 +115,11 @@ internal sealed class WeChatFixture : Window
                 if (_module != 0) Marshal.WriteByte(_module + 0x2021, 0);
                 Content = null;
                 break;
+            case "accessibility-expect-off":
+            case "accessibility-expect-on":
+                if (_module == 0 || Marshal.ReadByte(_module + 0x2021) != (action.EndsWith("on", StringComparison.Ordinal) ? 1 : 0))
+                    throw new InvalidOperationException("Unexpected synthetic accessibility gate value.");
+                break;
             case "incoming":
                 AddMessage(body, "Incoming"); Preview(_friend, "示例会话", body, ++_unread); break;
             case "outgoing":

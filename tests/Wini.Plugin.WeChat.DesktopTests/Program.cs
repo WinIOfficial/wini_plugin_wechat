@@ -14,7 +14,7 @@ if (args.Length >= 3 && args[0] == "--fixture") return WeChatFixture.Run(args[1]
 if (args.Length != 2 || args[0] != "--package") throw new ArgumentException("Expected --package <zip>.");
 var checks = 0;
 void Check(bool value,string name) { if(!value) throw new InvalidOperationException(name); checks++; Console.WriteLine("PASS "+name); }
-var root=Path.Combine(AppContext.BaseDirectory,"verification-"+Guid.NewGuid().ToString("N"));
+var root=Path.Combine(Path.GetTempPath(),"wini-desktop-"+Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
 var code=Path.Combine(root,"code"); ZipFile.ExtractToDirectory(Path.GetFullPath(args[1]),code);
 var manifest=JsonSerializer.Deserialize<PluginManifest>(await File.ReadAllTextAsync(Path.Combine(code,"manifest.json")),new JsonSerializerOptions(JsonSerializerDefaults.Web))!
@@ -42,19 +42,7 @@ try
     Check(denied,"Undeclared modules are inaccessible");
 
     worker=new(new(manifest,hostRoot,code,Path.Combine(root,"data")));
-    rpc=new(worker.Input,worker.Output,async(method,payload,token)=>
-    {
-        switch(method)
-        {
-            case "desktop": return await DesktopRpc.DispatchAsync(desktop,payload.Deserialize<WorkerDesktopRequest>(IsolationRpc.Json)!,token);
-            case "notification":
-                var notification=payload.Deserialize<PluginNotification>(IsolationRpc.Json)!;
-                if(notification.OriginProcessId is {} pid && !desktop.OwnsProcess(pid)) throw new UnauthorizedAccessException();
-                notifications.Enqueue(notification); return null;
-            case "diagnostic": return null;
-            default: throw new InvalidDataException("Unexpected worker request.");
-        }
-    });
+    rpc=new(worker.Input,worker.Output,HandleRequestAsync);
     await worker.VerifyReadyAsync(rpc);
     await rpc.CallAsync<WorkerDescription>("initialize",new WorkerInitialization(manifest,Path.Combine(root,"data"),manifest.Permissions,null,"0.1.0",code));
     await rpc.CallAsync<WorkerDescription>("start");
@@ -103,17 +91,22 @@ try
     await rpc.CallAsync<WorkerDescription>("stop");
     fixture.Send("incoming:停用期间消息");
     await QuietAsync("Stopping the LPAC plugin cancels its outstanding work");
+    rpc.Dispose(); worker.Dispose(); await worker.ExitTask;
+    worker=new(new(manifest,hostRoot,code,Path.Combine(root,"data")));
+    rpc=new(worker.Input,worker.Output,HandleRequestAsync);
+    await worker.VerifyReadyAsync(rpc);
+    await rpc.CallAsync<WorkerDescription>("initialize",new WorkerInitialization(manifest,Path.Combine(root,"data"),manifest.Permissions,null,"0.1.0",code));
     await rpc.CallAsync<WorkerDescription>("start");
     await UntilAsync(async()=> (await rpc.CallAsync<WorkerDescription>("poll"))?.Status.State==PluginConnectionState.Connected);
     await QuietAsync("Re-enabling creates a new silent baseline");
     fixture.Send("incoming:重新开启后消息");
-    await UntilAsync(()=>Task.FromResult(notifications.Count>=1)); notifications.Clear();
+    await UntilAsync(()=>Task.FromResult(notifications.Count>=1)); notifications.TryDequeue(out var resumed); notifications.Clear();
     Check(true,"New messages arrive after re-enabling");
+    Check(IsColor(resumed?.SenderAvatar,Color.CornflowerBlue),"A fresh LPAC worker restores the confirmed portrait from its own cache");
     fixture.Send("quit"); fixture.Process.WaitForExit(5000);
     await UntilAsync(async()=> (await rpc.CallAsync<WorkerDescription>("poll"))?.Status.State==PluginConnectionState.NotRunning);
     Check(true,"A closed client releases stale window state");
-    await rpc.CallAsync<WorkerDescription>("stop");
-    await desktop.DisposeAsync();
+    await DesktopRecoveryChecks.RunAsync(desktop,rpc,executable,root,notifications,Check);
     denied=false;
     try{await desktop.FindClientsAsync();}catch(OperationCanceledException){denied=true;}catch(ObjectDisposedException){denied=true;}
     Check(denied,"Revoked native desktop services reject subsequent access");
@@ -130,10 +123,27 @@ finally
     DeleteAppContainerProfile("WindowsIsland.Plugin."+identity);
 }
 
+async Task<object?> HandleRequestAsync(string method,JsonElement payload,CancellationToken token)
+{
+    switch(method)
+    {
+        case "desktop": return await DesktopRpc.DispatchAsync(desktop,payload.Deserialize<WorkerDesktopRequest>(IsolationRpc.Json)!,token);
+        case "notification":
+            var notification=payload.Deserialize<PluginNotification>(IsolationRpc.Json)!;
+            if(notification.OriginProcessId is {} pid && !desktop.OwnsProcess(pid)) throw new UnauthorizedAccessException();
+            notifications.Enqueue(notification); return null;
+        case "diagnostic": Console.WriteLine("DIAGNOSTIC "+payload.GetRawText()); return null;
+        default: throw new InvalidDataException("Unexpected worker request.");
+    }
+}
+
 async Task UntilAsync(Func<Task<bool>> condition)
 {
     var until=DateTimeOffset.UtcNow.AddSeconds(12);
     while(DateTimeOffset.UtcNow<until){if(await condition()) return; await Task.Delay(100);}
+    Console.WriteLine("Pending notifications: "+notifications.Count);
+    try { Console.WriteLine("Worker status: "+JsonSerializer.Serialize(await rpc!.CallAsync<WorkerDescription>("poll"),IsolationRpc.Json)); }
+    catch(Exception error) { Console.WriteLine("Worker poll failed: "+error.GetType().Name); }
     throw new TimeoutException("The desktop fixture did not reach the expected state.");
 }
 async Task QuietAsync(string name){await Task.Delay(850);Check(notifications.IsEmpty,name);}
