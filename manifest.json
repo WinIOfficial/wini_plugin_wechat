@@ -1,7 +1,7 @@
 {
   "id": "wini_plugin_wechat",
   "name": "微信",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minHostVersion": "0.1.0",
   "minimumHostVersion": "0.1.0",
   "entryAssembly": "Wini.Plugin.WeChat.dll",

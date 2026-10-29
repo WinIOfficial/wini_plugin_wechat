@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '0.1.0',
+    [string]$Version = '0.1.1',
     [string]$ContractsProject,
     [string]$ContractsFeed,
     [string]$ContractsVersion = '0.1.1'
