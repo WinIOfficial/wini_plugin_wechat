@@ -71,7 +71,7 @@ internal sealed class WeChatAvatarCache(string? directory = null, string scope =
 
     private string? FilePath((string Key, string Conversation) key) => directory is null ? null
         : Path.Combine(directory, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            $"{scope.Length}:{scope}{key.Key.Length}:{key.Key}{key.Conversation.Length}:{key.Conversation}"))) + ".png");
+            $"v2|{scope.Length}:{scope}{key.Key.Length}:{key.Key}{key.Conversation.Length}:{key.Conversation}"))) + ".png");
 
     private static DateTime ModifiedUtc(FileInfo file)
     {

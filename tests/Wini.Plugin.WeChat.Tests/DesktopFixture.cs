@@ -4,7 +4,7 @@ internal sealed class DesktopFixture : IPluginDesktop
 {
     public int Calls, ImageCalls;
     public int Unread = 1;
-    public string Body = "已有消息", Direction = "Incoming";
+    public string Body = "已有消息", Direction = "Incoming", Conversation = "会话";
     public bool Muted, Blocked;
     public byte[]? Avatar;
     private readonly List<(int Id,string Body,string Direction)> _history = [];
@@ -20,7 +20,7 @@ internal sealed class DesktopFixture : IPluginDesktop
     }
     public Task<DesktopTree> ReadTreeAsync(int processId, long window, CancellationToken token = default)
     {
-        var row = $"会话\n{Body}\n{DateTimeOffset.Now:HH:mm}\n{Unread}条未读消息" + (Muted ? "\n消息免打扰" : "");
+        var row = $"{Conversation}\n{Body}\n{DateTimeOffset.Now:HH:mm}\n{Unread}条未读消息" + (Muted ? "\n消息免打扰" : "");
         DesktopNode Node(int parent, string name, string id, int type, string runtime, DesktopRect bounds, string status = "") =>
             new(parent, name, id, type == 50007 && id.StartsWith("session") ? "mmui::ChatSessionCell" : "Fixture",
                 type, status, "", runtime, bounds, false);
@@ -28,8 +28,8 @@ internal sealed class DesktopFixture : IPluginDesktop
         return Task.FromResult(new DesktopTree("fixture", [
             new(-1,"客户端","","WeChatMainWndForPC",50032,"","","root",new(0,0,800,600),false),
             Node(0,"会话","session_list",50008,"sessions",new(0,0,260,500)),
-            Node(1,row,"session_item_会话",50007,"session",new(0,0,260,68)),
-            Node(0,"会话","chat_input_field",50004,"input",new(260,500,540,100)),
+            Node(1,row,"session_item_"+Conversation,50007,"session",new(0,0,260,68)),
+            Node(0,Conversation,"chat_input_field",50004,"input",new(260,500,540,100)),
             Node(0,"消息","chat_message_list",50008,"messages",new(260,0,540,500)),
             .._history.Select((message,index) => Node(4,message.Body,"",50007,"message/"+message.Id,
                 new(260,index*68,540,68),message.Direction))

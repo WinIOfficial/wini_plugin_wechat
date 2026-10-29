@@ -11,6 +11,8 @@ void Check(bool condition, string name)
 WeChatChecks.Run(Check);
 checks += AccessibilityChecks.Run();
 HealthAndEnrichmentChecks.Run(Check);
+AvatarCacheChecks.Run(Check);
+await RecoveryChecks.RunAsync(Check);
 
 using (var unavailable = new WeChatPlugin())
 {

@@ -11,6 +11,9 @@ using WindowsIsland.PluginIsolation;
 using Wini.Plugin.WeChat.Services;
 
 if (args.Length >= 3 && args[0] == "--fixture") return WeChatFixture.Run(args[1],args[2],args.Length > 3 ? args[3] : null);
+if (args.Length == 1 && args[0] == "--probe-preview") return await ClientProbe.RunAsync();
+if (args.Length == 2 && args[0] == "--check-module") return AccessibilityChecks.CheckModule(args[1]);
+if (args.Length == 2 && args[0] == "--avatar-edges") return AvatarImageChecks.Run(args[1]);
 if (args.Length != 2 || args[0] != "--package") throw new ArgumentException("Expected --package <zip>.");
 var checks = 0;
 void Check(bool value,string name) { if(!value) throw new InvalidOperationException(name); checks++; Console.WriteLine("PASS "+name); }
@@ -131,6 +134,9 @@ async Task<object?> HandleRequestAsync(string method,JsonElement payload,Cancell
         case "notification":
             var notification=payload.Deserialize<PluginNotification>(IsolationRpc.Json)!;
             if(notification.OriginProcessId is {} pid && !desktop.OwnsProcess(pid)) throw new UnauthorizedAccessException();
+            var policy=await rpc!.CallAsync<WorkerDescription>("describe",token:token);
+            if(policy?.ConversationRules?.Any(rule=>rule.Conversation==notification.ConversationName && !rule.Muted)!=true)
+                throw new InvalidDataException("The notification arrived before its current unmuted conversation policy.");
             notifications.Enqueue(notification); return null;
         case "diagnostic": Console.WriteLine("DIAGNOSTIC "+payload.GetRawText()); return null;
         default: throw new InvalidDataException("Unexpected worker request.");

@@ -33,7 +33,7 @@ internal sealed class WeChatService(IPluginDesktop desktop, Action<PluginNotific
         {
             try { await PollAsync(token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
-            catch (Exception error) when (error is IOException or InvalidOperationException or UnauthorizedAccessException)
+            catch (Exception error) when (IsDesktopFailure(error))
             { Volatile.Write(ref _status, new(PluginConnectionState.Disconnected, PluginStatusReason.ConnectionFailed)); }
             catch (Exception error) { report?.Invoke(error.GetBaseException()); throw; }
             try { await Task.Delay(500, token).ConfigureAwait(false); }
@@ -77,6 +77,7 @@ internal sealed class WeChatService(IPluginDesktop desktop, Action<PluginNotific
                         }
                         connected.Add(client.ProcessId); _health.Succeeded(client.ProcessId);
                         _conversations.Update(client.ProcessId, snapshot.Previews);
+                        Volatile.Write(ref _rules, _conversations.Rules());
                         if (snapshot.ConversationMuted is null)
                             snapshot = snapshot with { ConversationMuted = _conversations.IsMuted(snapshot.Conversation, client.ProcessId) };
                         var observedAt = tree.ObservedAt == default ? DateTimeOffset.UtcNow : tree.ObservedAt;
@@ -91,20 +92,31 @@ internal sealed class WeChatService(IPluginDesktop desktop, Action<PluginNotific
                         foreach (var update in watch.Enrichment.Update(snapshot.Previews, DateTimeOffset.UtcNow))
                         { token.ThrowIfCancellationRequested(); publish(update); }
                     }
-                    catch (Exception error) when (error is IOException or InvalidOperationException or UnauthorizedAccessException)
-                    { _watches.Remove(key); _health.Failed(client.ProcessId, false); }
+                    catch (Exception error) when (IsDesktopFailure(error))
+                    {
+                        token.ThrowIfCancellationRequested();
+                        _watches.Remove(key);
+                        _health.Failed(client.ProcessId, false);
+                        // A disabled or restarting provider can fail the read itself, rather than return an empty tree.
+                        // Re-enable through the same bounded path and establish a fresh baseline after recovery.
+                        await EnableAccessibilityAsync(client, token).ConfigureAwait(false);
+                    }
                 }
                 else if (IsPopup(window))
                 {
                     var popupKey = (client.ProcessId, window.Handle); popups.Add(popupKey);
-                    var tree = await desktop.ReadTreeAsync(client.ProcessId, window.Handle, token).ConfigureAwait(false);
-                    var content = ReadPopup(tree);
-                    var known = _popups.TryGetValue(popupKey, out var previous);
-                    _popups[popupKey] = content;
-                    if (!_baseline || content is null || known && previous == content) continue;
-                    if (_conversations.IsMuted(content.Value.Title, client.ProcessId) is not false) continue;
-                    token.ThrowIfCancellationRequested();
-                    publish(Notification(client, window, content.Value.Title, content.Value.Body, PluginNotificationKind.ClientHook));
+                    try
+                    {
+                        var tree = await desktop.ReadTreeAsync(client.ProcessId, window.Handle, token).ConfigureAwait(false);
+                        var content = ReadPopup(tree);
+                        var known = _popups.TryGetValue(popupKey, out var previous);
+                        _popups[popupKey] = content;
+                        if (!_baseline || content is null || known && previous == content) continue;
+                        if (_conversations.IsMuted(content.Value.Title, client.ProcessId) is not false) continue;
+                        token.ThrowIfCancellationRequested();
+                        publish(Notification(client, window, content.Value.Title, content.Value.Body, PluginNotificationKind.ClientHook));
+                    }
+                    catch (Exception error) when (IsDesktopFailure(error)) { token.ThrowIfCancellationRequested(); }
                 }
             }
         }
@@ -125,6 +137,9 @@ internal sealed class WeChatService(IPluginDesktop desktop, Action<PluginNotific
             _ => new(PluginConnectionState.Disconnected)
         });
     }
+
+    private static bool IsDesktopFailure(Exception error) => error is IOException or InvalidOperationException
+        or UnauthorizedAccessException or TimeoutException or OperationCanceledException;
 
     private async Task<bool> EnableAccessibilityAsync(DesktopClient client, CancellationToken token)
     {

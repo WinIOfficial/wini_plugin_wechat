@@ -88,6 +88,7 @@ internal static class AccessibilityChecks
     }
 
     internal static void WriteFixtureModule(string path) => File.WriteAllBytes(path, Fixture(0x1000, 0x2000, 0x21));
+    internal static byte[] FixtureModule() => Fixture(0x1000, 0x2000, 0x21);
 
     private static WeChatAccessibilityLocator.Location? Find(byte[] bytes)
     {
