@@ -2,8 +2,6 @@ using System.Collections.Concurrent;
 using System.Drawing;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using WindowsIsland.Contracts;
 using WindowsIsland.Plugins;
@@ -122,8 +120,7 @@ finally
     rpc?.Dispose();
     worker?.Dispose();
     if(worker is not null) await worker.ExitTask;
-    var identity=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(hostRoot).ToUpperInvariant()+"\n"+manifest.Id)))[..40].ToLowerInvariant();
-    DeleteAppContainerProfile("WindowsIsland.Plugin."+identity);
+    DeleteAppContainerProfile(SandboxProcess.ProfileName(hostRoot,manifest.Id));
 }
 
 async Task<object?> HandleRequestAsync(string method,JsonElement payload,CancellationToken token)
